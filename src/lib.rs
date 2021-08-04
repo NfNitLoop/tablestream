@@ -360,6 +360,7 @@ impl <T> Column<T> {
 
     pub fn header(mut self, name: &str) -> Self {
         self.header = Some(name.to_string());
+        self.min_width = max(self.min_width, name.len());
         self
     }
 

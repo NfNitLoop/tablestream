@@ -110,7 +110,7 @@ fn basic_border() -> fmt::Result {
 }
 
 #[test]
-fn longer_text() -> fmt::Result {
+fn longer_text_border() -> fmt::Result {
     let mut out = String::new();
     let mut s = Stream::new(
         &mut out,
@@ -125,10 +125,10 @@ fn longer_text() -> fmt::Result {
 
     let expected ="\
 --------------------------------------------------------------------------------
-| Name | Ag | Favori | Text                                                    |
+| Name | Age | Favorite Color | Text                                           |
 --------------------------------------------------------------------------------
-| Cody | 41 | yellow | Here's a long string of text. It's probably going to be |
-| Bob  | 99 | beige  | lorum ipsum dolor sit amet. Or something tothat effect. |
+| Cody | 41  | yellow         | Here's a long string of text. It's probably go |
+| Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something totha |
 --------------------------------------------------------------------------------
 ";
 
@@ -137,3 +137,30 @@ fn longer_text() -> fmt::Result {
     Ok(())
 }
 
+#[test]
+fn longer_text() -> fmt::Result {
+    let mut out = String::new();
+    let mut s = Stream::new(
+        &mut out,
+        cols_4(),
+    );
+
+    for person in sample_data() {
+        s.row(person)?;
+    }
+
+    s.finish()?;
+
+    let expected ="\
+--------------------------------------------------------------------------------
+Name | Age | Favorite Color | Text                                              
+--------------------------------------------------------------------------------
+Cody | 41  | yellow         | Here's a long string of text. It's probably going 
+Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something tothat ef
+--------------------------------------------------------------------------------
+";
+
+    assert_eq!(expected, out);
+
+    Ok(())
+}
