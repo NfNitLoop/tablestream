@@ -1,4 +1,4 @@
-use std::{fmt};
+use std::{io};
 
 use crate::{Column, Stream};
 
@@ -54,13 +54,13 @@ fn cols_4() -> Vec<Column<Person>> {
 
 
 #[test]
-fn basic() -> fmt::Result {
+fn basic() -> io::Result<()> {
 
-    let mut out = String::new();
+    let mut out = Vec::new();
     let mut s = Stream::new(
         &mut out,
         cols_3(),
-    );
+    ).max_width(80);
 
     for person in sample_data().into_iter().take(1) {
         s.row(person)?;
@@ -76,19 +76,20 @@ Cody | 41  | yellow
 ---------------------------
 ".trim_start();
 
+    let out = String::from_utf8(out).unwrap();
     assert_eq!(expected, out);
 
     Ok(())
 }
 
 #[test]
-fn basic_border() -> fmt::Result {
+fn basic_border() -> io::Result<()> {
 
-    let mut out = String::new();
+    let mut out = Vec::new();
     let mut s = Stream::new(
         &mut out,
         cols_3(),
-    ).borders(true);
+    ).borders(true).max_width(80);
 
     for person in sample_data().into_iter().take(1) {
         s.row(person)?;
@@ -96,26 +97,27 @@ fn basic_border() -> fmt::Result {
 
     s.finish()?;
 
-    let expected = "
+    let expected = "\
 -------------------------------
 | Name | Age | Favorite Color |
 -------------------------------
 | Cody | 41  | yellow         |
 -------------------------------
-".trim_start();
+";
 
+    let out = String::from_utf8(out).unwrap();
     assert_eq!(expected, out);
 
     Ok(())
 }
 
 #[test]
-fn longer_text_border() -> fmt::Result {
-    let mut out = String::new();
+fn longer_text_border() -> io::Result<()> {
+    let mut out = Vec::new();
     let mut s = Stream::new(
         &mut out,
         cols_4(),
-    ).borders(true);
+    ).borders(true).max_width(80);
 
     for person in sample_data() {
         s.row(person)?;
@@ -132,18 +134,19 @@ fn longer_text_border() -> fmt::Result {
 --------------------------------------------------------------------------------
 ";
 
+    let out = String::from_utf8(out).unwrap();
     assert_eq!(expected, out);
 
     Ok(())
 }
 
 #[test]
-fn longer_text() -> fmt::Result {
-    let mut out = String::new();
+fn longer_text() -> io::Result<()> {
+    let mut out = Vec::new();
     let mut s = Stream::new(
         &mut out,
         cols_4(),
-    );
+    ).max_width(80);
 
     for person in sample_data() {
         s.row(person)?;
@@ -160,6 +163,7 @@ Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something tothat ef
 --------------------------------------------------------------------------------
 ";
 
+    let out = String::from_utf8(out).unwrap();
     assert_eq!(expected, out);
 
     Ok(())

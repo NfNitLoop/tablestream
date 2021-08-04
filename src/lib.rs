@@ -2,7 +2,13 @@
 //! It will buffer some number of rows before first output and try to automatically
 //! determine appropriate widths for each column.
 
-use std::{cmp::max, fmt::{self, Write}, marker::PhantomData, mem};
+use std::{
+    cmp::max,
+    fmt::{self, Write as FmtWrite},
+    io::{self, Write},
+    marker::PhantomData,
+    mem
+};
 
 #[cfg(test)]
 mod tests;
@@ -28,14 +34,17 @@ pub struct Stream<T, Out: Write> {
     _pd: PhantomData<T>,
 }
 
+
 impl <T, Out: Write> Stream<T, Out> {
-    pub fn new(out: Out, columns: Vec<Column<T>>) -> Self {
+
+    /// Create a new table streamer.
+    pub fn new(output: Out, columns: Vec<Column<T>>) -> Self {
         Self{
             columns,
-            max_width: 80, // TODO: Auto-calculate from terminal.
+            max_width: 0,
             width: 0, // calculated later.
             grow: true,
-            output: out,
+            output,
             wrap: false,
             borders: false,
             padding: true,
@@ -46,18 +55,40 @@ impl <T, Out: Write> Stream<T, Out> {
             str_buf: String::new(),
 
             _pd: Default::default(),
-        }
+        }.max_width(
+            crossterm::terminal::size().map(|(w,_)| w as usize).unwrap_or(80)
+        )
     }
+
+
 
     pub fn borders(mut self, borders: bool) -> Self {
         self.borders = borders;
+        let width = self.max_width;
+        self.max_width(width)
+    }
+
+    /// Set the maximum width for the table.
+    /// Note: this may be increased automatically for you if you've
+    /// specified columns, borders, dividers, and paddings with sizes
+    /// that require a larger max_width.
+    pub fn max_width(mut self, max_width: usize) -> Self {
+        let num_cols = self.columns.len();
+        let padding = if self.padding { 1 } else { 0 };
+        let dividers = (num_cols - 1) * (1 + 2*padding);
+        let border = if self.borders { 1 } else { 0 };
+        let borders = border * (border + padding) * 2;
+
+        let col_widths = self.columns.iter().map(|c| c.min_width).sum::<usize>();
+        let min_width = col_widths + borders + dividers;
+        self.max_width = max(max_width, min_width);
         self
     }
 
     /// Print a single row.
     /// Note: Stream may buffer some rows before it begins output to calculate 
     /// column sizes.
-    pub fn row(&mut self, data: T) -> fmt::Result {
+    pub fn row(&mut self, data: T) -> io::Result<()> {
 
         if self.sizes_calculated {
             return self.print_row(data);
@@ -71,7 +102,7 @@ impl <T, Out: Write> Stream<T, Out> {
         Ok(())
     }
 
-    fn write_buffer(&mut self) -> fmt::Result {
+    fn write_buffer(&mut self) -> io::Result<()> {
         self.calc_sizes()?;
 
         self.print_headers()?;
@@ -84,7 +115,7 @@ impl <T, Out: Write> Stream<T, Out> {
         Ok(())
     }
 
-    fn print_headers(&mut self) -> fmt::Result {
+    fn print_headers(&mut self) -> io::Result<()> {
         self.hr()?;
         if self.borders {
             write!(&mut self.output, "|")?;
@@ -122,11 +153,11 @@ impl <T, Out: Write> Stream<T, Out> {
         Ok(())
     }
 
-    fn hr(&mut self) -> fmt::Result {
+    fn hr(&mut self) -> io::Result<()> {
         writeln!(&mut self.output, "{1:-<0$}", self.width, "")
     }
 
-    fn print_row(&mut self, row: T) -> fmt::Result {
+    fn print_row(&mut self, row: T) -> io::Result<()> {
 
         let buf = &mut self.str_buf;
         let out = &mut self.output;
@@ -148,7 +179,7 @@ impl <T, Out: Write> Stream<T, Out> {
             }
 
             buf.clear();
-            write!(buf, "{}", (col.mapper)(&row))?;
+            write!(buf, "{}", (col.mapper)(&row)).to_io()?;
 
             // TODO: This assumes characters are all 1 wide.
             // Crate to calculate glyph/column widths?
@@ -172,7 +203,7 @@ impl <T, Out: Write> Stream<T, Out> {
         Ok(())
     }
 
-    fn calc_sizes(&mut self) -> fmt::Result {
+    fn calc_sizes(&mut self) -> io::Result<()> {
         if self.sizes_calculated { return Ok(()); }
         self.sizes_calculated = true; // or will be very soon. :p
 
@@ -180,7 +211,7 @@ impl <T, Out: Write> Stream<T, Out> {
         for row in &self.buffer {
             for col in self.columns.iter_mut() {
                 self.str_buf.clear();
-                write!(&mut self.str_buf, "{}", (col.mapper)(row))?;
+                write!(&mut self.str_buf, "{}", (col.mapper)(row)).to_io()?;
                 col.max_width = max(col.max_width, self.str_buf.len());
                 col.width_sum += self.str_buf.len();
             }
@@ -306,7 +337,7 @@ impl <T, Out: Write> Stream<T, Out> {
     /// Finish writing output.
     /// This may write any items still in the buffer,
     /// as well as a trailing horizontal line.
-    pub fn finish(mut self) -> fmt::Result {
+    pub fn finish(mut self) -> io::Result<()> {
         self.write_buffer()?;
         self.hr()?;
 
@@ -379,4 +410,15 @@ fn safe_truncate(value: &mut String, mut len: usize) {
     }
 
     value.truncate(len);
+}
+
+
+trait ToIOResult {
+    fn to_io(self) -> io::Result<()>;
+}
+
+impl ToIOResult for fmt::Result {
+    fn to_io(self) -> io::Result<()> {
+        self.map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+    }
 }
