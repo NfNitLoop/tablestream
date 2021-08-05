@@ -2,6 +2,7 @@
 name = "tablestream"
 version = "0.1.0"
 edition = "2018"
+repository = "https://github.com/NfNitLoop/tablestream"
 readme = "README.md"
 
 
