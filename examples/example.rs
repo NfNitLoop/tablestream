@@ -11,11 +11,20 @@ fn main() -> io::Result<()> {
     let stdout = stdout();
     let mut handle = stdout.lock();
 
-    let mut stream = Stream::new(&mut handle, vec![
+    let mut cols = vec![
         Column::new(|f, c: &City| write!(f, "{}", &c.name)).header("City"),
         col!(City: .country).header("Country"),
-        col!(City: "{:.2e}", .population).header("Population").right(),
-    ]);
+        
+    ];
+
+    if opts.format_pop {
+        cols.push(col!(City: "{:.2e}", .population).header("Population").right());
+    } else {
+        cols.push(col!(City: .population).header("Population").right());
+    }
+
+
+    let mut stream = Stream::new(&mut handle, cols);
     if let Some(g) = opts.grow {
         stream = stream.grow(g);
     }
@@ -47,6 +56,9 @@ struct Opts {
 
     #[structopt(long)]
     no_padding: bool,
+
+    #[structopt(long)]
+    format_pop: bool,
 }
 
 
