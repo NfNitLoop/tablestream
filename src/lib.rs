@@ -67,18 +67,20 @@ mod tests;
 
 /// Allows printing rows of data to some io::Write.
 pub struct Stream<T, Out: Write> {
+    // User options:
     columns: Vec<Column<T>>,
-    width: usize, // calculated.
     max_width: usize,
     grow: Option<bool>,
     output: Out,
+    borders: bool,
+    padding: bool,
+    title: Option<String>,
 
     #[allow(dead_code)] // TODO
     wrap: bool,
-    borders: bool,
-    padding: bool,
 
     sizes_calculated: bool,
+    width: usize, // calculated.
     buffer: Vec<T>,
 
     // It's handy to have a long-lived string buffer so we don't have to continue to reallocate.
@@ -100,6 +102,7 @@ impl <T, Out: Write> Stream<T, Out> {
             wrap: false,
             borders: false,
             padding: true,
+            title: None,
 
             sizes_calculated: false,
             buffer: vec![],
@@ -133,6 +136,11 @@ impl <T, Out: Write> Stream<T, Out> {
         let col_widths = self.columns.iter().map(|c| c.min_width).sum::<usize>();
         let min_width = col_widths + borders + dividers;
         self.max_width = max(max_width, min_width);
+
+        // If the user sets a long title, that likewise bumps up our max-width.
+        let title_width = self.title.as_ref().map(|t| t.width()).unwrap_or(0) + borders;
+        self.max_width = max(self.max_width, title_width);
+        
         self
     }
 
@@ -153,6 +161,13 @@ impl <T, Out: Write> Stream<T, Out> {
     pub fn grow(mut self, grow: bool) -> Self {
         self.grow = Some(grow);
         self
+    }
+
+    /// Set a table title, to be displayed centered above the table.
+    pub fn title(mut self, title: &str) -> Self {
+        self.title = Some(title.to_string());
+        let width = self.max_width;
+        self.max_width(width)
     }
 
     /// Print a single row.
@@ -189,43 +204,54 @@ impl <T, Out: Write> Stream<T, Out> {
 
     fn print_headers(&mut self) -> io::Result<()> {
         self.hr()?;
-        if self.borders {
-            write!(&mut self.output, "|")?;
-            if self.padding {
-                write!(&mut self.output, " ")?;
-            }
+
+        let border_width = if self.borders { 1 } else { 0 } + if self.padding { 1 } else { 0 };
+        let title_width = self.width - (border_width * 2);
+
+        if let Some(title) = &self.title {
+            let title = title.clone();
+            self.border_left()?;
+            Alignment::Center.write(&mut self.output, title_width, &title)?;
+            self.border_right()?;
+            self.hr()?;
         }
 
-        let divider = if self.padding {
-            " | "
-        } else {
-            "|"
-        };
-
-        for (i, col) in self.columns.iter().enumerate() {
-            if i > 0 {
-                write!(&mut self.output, "{}", divider)?;
+        let has_headers = self.columns.iter().any(|c| c.header.is_some());
+        if has_headers {
+            let divider = if self.padding { " | " } else { "|" };
+            self.border_left()?;
+            for (i, col) in self.columns.iter().enumerate() {
+                if i > 0 {
+                    write!(&mut self.output, "{}", divider)?;
+                }
+                let name = col.header.as_ref().map(|h| h.as_str()).unwrap_or("");
+                Alignment::Center.write(&mut self.output, col.width, name)?;
             }
-            let name = col.header.as_ref().map(|h| h.as_str()).unwrap_or("");
-            Alignment::Center.write(&mut self.output, col.width, name)?;
+            self.border_right()?;
+            self.hr()?;
         }
-
-        if self.borders {
-            if self.padding {
-                write!(&mut self.output, " ")?;
-            }
-            write!(&mut self.output, "|")?;
-        }
-
-        writeln!(&mut self.output, "")?;
-        
-        self.hr()?;
 
         Ok(())
     }
 
     fn hr(&mut self) -> io::Result<()> {
         writeln!(&mut self.output, "{1:-<0$}", self.width, "")
+    }
+
+    fn border_left(&mut self) -> io::Result<()> {
+        if self.borders {
+            let border = if self.padding { "| " } else { "|" };
+            write!(&mut self.output, "{}", border)?;
+        }
+        Ok(())
+    }
+    fn border_right(&mut self) -> io::Result<()> {
+        if self.borders {
+            let border = if self.padding { " |" } else { "|" };
+            writeln!(&mut self.output, "{}", border)
+        } else {
+            writeln!(&mut self.output, "")
+        }
     }
 
     fn print_row(&mut self, row: T) -> io::Result<()> {
@@ -417,11 +443,30 @@ impl <T, Out: Write> Stream<T, Out> {
 
     /// Finish writing output.
     /// This may write any items still in the buffer,
-    /// as well as a trailing horizontal line.
+    /// as well as a trailing horizontal line and footer.
     pub fn finish(mut self) -> io::Result<()> {
         if !self.buffer.is_empty() {
             self.write_buffer()?;
         }
+        self.hr()?;
+
+       
+        Ok(())
+    }
+
+    /// Like [`finish`], but adds a footer at the end as well.
+    pub fn footer(mut self, footer: &str) -> io::Result<()> {
+        if !self.buffer.is_empty() {
+            self.write_buffer()?;
+        }
+        
+        let border_width = if self.borders { 1 } else { 0 } + if self.padding { 1 } else { 0 };
+        let foot_width = self.width - (border_width * 2);
+
+        self.hr()?;
+        self.border_left()?;
+        Alignment::Center.write(&mut self.output, foot_width, &footer)?;
+        self.border_right()?;
         self.hr()?;
 
         Ok(())

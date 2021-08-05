@@ -83,6 +83,28 @@ Cody | 41  | yellow
 }
 
 #[test]
+fn no_headers() -> io::Result<()> {
+    let mut out = Vec::new();
+    let mut s = Stream::new(&mut out, vec![col!(Person: .name)]).borders(true);
+    for person in sample_data() {
+        s.row(person)?;
+    }
+    s.finish()?;
+
+    let expected = "\
+--------
+| Cody |
+| Bob  |
+--------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(expected, out);
+
+    Ok(())
+}
+
+#[test]
 fn basic_border() -> io::Result<()> {
 
     let mut out = Vec::new();
@@ -98,6 +120,37 @@ fn basic_border() -> io::Result<()> {
     s.finish()?;
 
     let expected = "\
+-------------------------------
+| Name | Age | Favorite Color |
+-------------------------------
+| Cody | 41  | yellow         |
+-------------------------------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(expected, out);
+
+    Ok(())
+}
+
+#[test]
+fn title() -> io::Result<()> {
+
+    let mut out = Vec::new();
+    let mut s = Stream::new(
+        &mut out,
+        cols_3(),
+    ).borders(true).max_width(80).title("People");
+
+    for person in sample_data().into_iter().take(1) {
+        s.row(person)?;
+    }
+
+    s.finish()?;
+
+    let expected = "\
+-------------------------------
+|           People            |
 -------------------------------
 | Name | Age | Favorite Color |
 -------------------------------

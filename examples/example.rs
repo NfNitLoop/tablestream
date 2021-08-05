@@ -28,15 +28,25 @@ fn main() -> io::Result<()> {
     if let Some(g) = opts.grow {
         stream = stream.grow(g);
     }
+    if let Some(title) = opts.title {
+        stream = stream.title(&title);
+    }
     stream = stream.borders(opts.borders).padding(!opts.no_padding);
 
     let cities = if opts.unicode { cities_unicode() } else { largest_cities() };
+    let total_pop: u32 = cities.iter().map(|c| c.population).sum();
+
     // Generally don't want to clone like this but just doing so to simulate long tables:
     for city in cities.iter().cycle().take(opts.repeat as usize * cities.len()).cloned() {
         stream.row(city)?;
     }
 
-    stream.finish()?;
+    if opts.total {
+        let footer = format!("Total Population: {}", total_pop);
+        stream.footer(&footer)?;
+    } else {
+        stream.finish()?;
+    }
 
     Ok(())
 }
@@ -62,6 +72,14 @@ struct Opts {
 
     #[structopt(long)]
     unicode: bool,
+
+    #[structopt(long)]
+    title: Option<String>,
+
+    /// Show total population of these cities.
+    #[structopt(long)]
+    total: bool,
+
 }
 
 
