@@ -19,10 +19,10 @@ exclude = [
 [dependencies]
 # Used to determine terminal width.
 # (And maybe eventually for colors.)
-crossterm = "*"
+crossterm = "0.20.0"
 
-unicode-truncate = "*"
-unicode-width = "*"
+unicode-truncate = "0.2.0"
+unicode-width = "0.1.8"
 
 
 [dev-dependencies.structopt]
