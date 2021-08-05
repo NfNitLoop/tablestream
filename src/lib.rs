@@ -59,6 +59,9 @@ use std::{
     mem
 };
 
+use unicode_truncate::UnicodeTruncateStr;
+use unicode_width::UnicodeWidthStr;
+
 #[cfg(test)]
 mod tests;
 
@@ -203,9 +206,8 @@ impl <T, Out: Write> Stream<T, Out> {
             if i > 0 {
                 write!(&mut self.output, "{}", divider)?;
             }
-            let mut name = col.header.as_ref().map(|h| h.as_str()).unwrap_or("").to_string();
-            safe_truncate(&mut name, col.width);
-            write!(&mut self.output, "{:^1$}", name, col.width)?;
+            let name = col.header.as_ref().map(|h| h.as_str()).unwrap_or("");
+            Alignment::Center.write(&mut self.output, col.width, name)?;
         }
 
         if self.borders {
@@ -254,18 +256,7 @@ impl <T, Out: Write> Stream<T, Out> {
                 Displayer{ row: &row, writer: col.writer.as_ref() }
             ).to_io()?;
 
-            // TODO: This assumes characters are all 1 wide.
-            // Crate to calculate glyph/column widths?
-            if buf.len() > col.width {
-                safe_truncate(buf, col.width);
-            }
-
-            match col.alignment {
-                Alignment::Left => write!(out, "{0:<1$}", buf, col.width),
-                Alignment::Right => write!(out, "{0:>1$}", buf, col.width),
-                Alignment::Center => write!(out, "{0:^1$}", buf, col.width),
-            }?;
-
+            col.alignment.write(out, col.width, buf.as_str())?;
         }
 
         if self.borders {
@@ -293,8 +284,9 @@ impl <T, Out: Write> Stream<T, Out> {
                     "{}",
                     Displayer{ row, writer: col.writer.as_ref() }
                 ).to_io()?;
-                col.max_width = max(col.max_width, self.str_buf.len());
-                col.width_sum += self.str_buf.len();
+                let width = self.str_buf.width();
+                col.max_width = max(col.max_width, width);
+                col.width_sum += width;
             }
         }
 
@@ -522,17 +514,27 @@ enum Alignment {
     Right,
 }
 
-fn safe_truncate(value: &mut String, mut len: usize) {
-    if value.len() <= len { return }
-
-    // truncate panics if you try to truncate at a non-char-boundary. >.< 
-    while !value.is_char_boundary(len) {
-        len -= 1;
+impl Alignment {
+    // Write into a column of some width.
+    // Truncates to be no more than that size. 
+    // pads to be exactly that size.
+    fn write<W: io::Write>(&self, out: &mut W, col_width: usize, value: &str) -> io::Result<()> {
+        let (value, width) = value.unicode_truncate(col_width);
+        let (lpad, rpad) = match self {
+            Alignment::Left => (0, col_width - width),
+            Alignment::Right => (col_width - width, 0),
+            Alignment::Center => {
+                let padding = col_width - width;
+                let half = padding / 2;
+                let remainder = padding % 2;
+                (half, half + remainder)
+            }
+        };
+        // Note: We don't use Rust's built-in width formatter because
+        // it just counts chars. Do our own padding:
+        write!(out, "{0:1$}{3}{0:2$}", "", lpad, rpad, value)
     }
-
-    value.truncate(len);
 }
-
 
 trait ToIOResult {
     fn to_io(self) -> io::Result<()>;

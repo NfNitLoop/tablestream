@@ -229,3 +229,51 @@ Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something to that e
 
     Ok(())
 }
+
+
+#[test]
+fn unicode_text() -> io::Result<()> {
+    let mut out = Vec::new();
+    let mut s = Stream::new(
+        &mut out,
+        cols_4(),
+    ).max_width(80).grow(true).borders(true);
+
+    for person in sample_data() {
+        s.row(person)?;
+    }
+
+    s.row(Person {
+        age: 37,
+        name: "Heiðar".to_string(),
+        favorite_color: "rauður".to_string(),
+        text: "Okej, þú ert hérna núna. :)".to_string(),
+    })?;
+
+    s.row(Person {
+        age: 37,
+        name: "陽葵".to_string(),
+        favorite_color: "青".to_string(),
+        text: "ここにいくつかの日本語のテキストがあります。 ありがとう、インターネット。".to_string(),
+    })?;
+
+    s.finish()?;
+
+    // Note: in VS Code, the japanese characters are not exactly double-wide, so
+    // this may appear to align incorrectly. Try echoing it in your terminal instead.
+    let expected = "\
+--------------------------------------------------------------------------------
+|  Name  | Age | Favorite Color |                     Text                     |
+--------------------------------------------------------------------------------
+| Cody   | 41  | yellow         | Here's a long string of text. It's probably  |
+| Bob    | 99  | beige          | lorum ipsum dolor sit amet. Or something to  |
+| Heiðar | 37  | rauður         | Okej, þú ert hérna núna. :)                  |
+| 陽葵   | 37  | 青             | ここにいくつかの日本語のテキストがあります。 |
+--------------------------------------------------------------------------------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(expected, out);
+
+    Ok(())
+}

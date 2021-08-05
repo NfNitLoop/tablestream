@@ -10,6 +10,10 @@ readme = "README.md"
 # (And maybe eventually for colors.)
 crossterm = "*"
 
+unicode-truncate = "*"
+unicode-width = "*"
+
+
 [dev-dependencies.structopt]
 # Used by example.rs
 version = "*"

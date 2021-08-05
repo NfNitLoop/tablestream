@@ -15,10 +15,10 @@ See the [API Docs] for examples.
 Current Limitations
 -------------------
 
- * Currently only really works for ASCII.  
-   I'm currently assuming String.len() == column width.
-   Is there a good library for calculating/truncating length based on glyph widths?
-
+ * Doesn't handle right-to-left text. (Have tips on doing this in a terminal!?)
+ * Emoji aren't handled.
+ * Bengali seems to not render properly in Widnows terminal, so that's not supported.
+   (Though maybe it'll work for you elsewhere?)
 
 Future Features?
 ----------------

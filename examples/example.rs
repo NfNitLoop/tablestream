@@ -30,7 +30,7 @@ fn main() -> io::Result<()> {
     }
     stream = stream.borders(opts.borders).padding(!opts.no_padding);
 
-    let cities = largest_cities();
+    let cities = if opts.unicode { cities_unicode() } else { largest_cities() };
     // Generally don't want to clone like this but just doing so to simulate long tables:
     for city in cities.iter().cycle().take(opts.repeat as usize * cities.len()).cloned() {
         stream.row(city)?;
@@ -59,6 +59,9 @@ struct Opts {
 
     #[structopt(long)]
     format_pop: bool,
+
+    #[structopt(long)]
+    unicode: bool,
 }
 
 
@@ -103,3 +106,34 @@ fn largest_cities() -> Vec<City> {
         City::new("Lima", "Peru", 10_850_000),    ]
 }
 
+fn cities_unicode() -> Vec<City> {
+    vec![
+        City::new("上海市", "中国", 24_150_000),
+        City::new("北京市", "中国", 21_700_000),
+        City::new("Lagos", "Nigeria", 21_320_000),
+        City::new("天津市", "中国", 15_470_000),
+        
+        // TODO: OK, Urdu is right-to-left and that'll come later. 
+        City::new("Karachi", "Pakistan", 14_920_000),
+        
+        City::new("İstanbul", "Türkiye Cumhuriyeti", 14_800_000),
+        
+        // TODO: Windows Terminal really does not like this for some reason:
+        // City::new("ঢাকা", "গণপ্রজাতন্ত্রী বাংলাদেশ", 14_540_000),
+        City::new("Dhaka", "Bangladesh", 14_540_000),
+
+
+        City::new("成都市", "中国", 14_430_000),
+        City::new("東京都", "日本", 13_620_000),
+        City::new("广州市", "中国",  13_500_000),
+        City::new("Mumbai", "India", 12_440_000),
+        City::new("Москва", "Российская Федерация", 12_380_000),
+        City::new("Bengaluru", "India", 12_340_000),
+        City::new("周口市", "中国", 12_070_000),
+        City::new("São Paulo", "Brazil", 12_040_000),
+        City::new("Kinshasa", "République démocratique du Congo", 11_860_000),
+        City::new("南阳市", "中国", 11_680_000),
+        City::new("保定市", "中国", 11_190_000),
+        City::new("Delhi", "India", 11_030_000),
+        City::new("Lima", "República del Perú", 10_850_000),    ]
+}
