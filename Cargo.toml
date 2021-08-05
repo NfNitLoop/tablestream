@@ -1,8 +1,14 @@
 [package]
 name = "tablestream"
+description = "A streaming table formatter for the console"
+keywords = ["table", "console", "format", "stream", "unicode"]
+categories = ["command-line-interface", "visualization"]
+license = "MIT OR Apache-2.0"
+
 version = "0.1.0"
 edition = "2018"
 repository = "https://github.com/NfNitLoop/tablestream"
+documentation = "https://docs.rs/tablestream"
 readme = "README.md"
 
 
