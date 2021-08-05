@@ -27,4 +27,4 @@ unicode-width = "0.1.8"
 
 [dev-dependencies.structopt]
 # Used by example.rs
-version = "*"
+version = "0.3.22"
