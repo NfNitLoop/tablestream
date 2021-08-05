@@ -50,17 +50,6 @@
 //!  
 //! # Ok::<(), io::Error>(())
 //! ```
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
-//! 
 
 use std::{
     cmp::max,
@@ -78,7 +67,7 @@ pub struct Stream<T, Out: Write> {
     columns: Vec<Column<T>>,
     width: usize, // calculated.
     max_width: usize,
-    grow: bool,
+    grow: Option<bool>,
     output: Out,
 
     #[allow(dead_code)] // TODO
@@ -97,14 +86,13 @@ pub struct Stream<T, Out: Write> {
 
 
 impl <T, Out: Write> Stream<T, Out> {
-
     /// Create a new table streamer.
     pub fn new(output: Out, columns: Vec<Column<T>>) -> Self {
         Self{
             columns,
             max_width: 0,
             width: 0, // calculated later.
-            grow: true,
+            grow: None,
             output,
             wrap: false,
             borders: false,
@@ -121,7 +109,7 @@ impl <T, Out: Write> Stream<T, Out> {
         )
     }
 
-    /// Enable right/left borders? (defulat: false)
+    /// Enable right/left borders? (default: false)
     pub fn borders(mut self, borders: bool) -> Self {
         self.borders = borders;
         let width = self.max_width;
@@ -150,6 +138,18 @@ impl <T, Out: Write> Stream<T, Out> {
         self.padding = padding;
         let width = self.max_width;
         self.max_width(width)
+    }
+
+    /// Should the table grow to fit its max_size?
+    /// 
+    /// Default behavior is determined by how much data we send to Stream.
+    /// 1. If we `.finish()` before the buffer is full, and determine that the table
+    ///    can be rendered smaller, then we will do so. (grow=false)
+    /// 2. If we fill the buffer and begin streaming mode, we'll grow the table so that
+    ///    there will be spare width later if we need it. (grow=true)
+    pub fn grow(mut self, grow: bool) -> Self {
+        self.grow = Some(grow);
+        self
     }
 
     /// Print a single row.
@@ -203,7 +203,7 @@ impl <T, Out: Write> Stream<T, Out> {
             }
             let mut name = col.header.as_ref().map(|h| h.as_str()).unwrap_or("").to_string();
             safe_truncate(&mut name, col.width);
-            write!(&mut self.output, "{:1$}", name, col.width)?;
+            write!(&mut self.output, "{:^1$}", name, col.width)?;
         }
 
         if self.borders {
@@ -258,7 +258,11 @@ impl <T, Out: Write> Stream<T, Out> {
                 safe_truncate(buf, col.width);
             }
 
-            write!(out, "{0:1$}", buf, col.width)?;
+            match col.alignment {
+                Alignment::Left => write!(out, "{0:<1$}", buf, col.width),
+                Alignment::Right => write!(out, "{0:>1$}", buf, col.width),
+                Alignment::Center => write!(out, "{0:^1$}", buf, col.width),
+            }?;
 
         }
 
@@ -314,15 +318,23 @@ impl <T, Out: Write> Stream<T, Out> {
         let all_max: usize = self.columns.iter().map(col_width).sum();
         if all_max < available_width {
             // easy mode, just give everyone their max.
-            for col in self.columns.iter_mut() {
-                col.width = col_width(col);
-            }
-            self.width = all_max + dividers + borders;
 
-            if self.grow {
-                // TODO: Grow to fill available width, even though unnecessary.
-                // TODO: Always grow?
+            // also: distribute extra width to each column, if we want to grow:
+            let extra_width = if self.grow.unwrap_or(false) {
+                self.width = self.max_width;
+                available_width - all_max
+            } else {
+                self.width = all_max + dividers + borders;
+                0
+            };
+
+            let extra_per_col = extra_width / num_cols;
+            let mut extra_last_col = extra_width % num_cols;
+            for col in self.columns.iter_mut().rev() {
+                col.width = col_width(col) + extra_per_col + extra_last_col;
+                extra_last_col = 0;
             }
+
             return Ok(());
         }
 
@@ -337,13 +349,13 @@ impl <T, Out: Write> Stream<T, Out> {
             // We expect that when verbose_cols=self.columns.len(), we'll just divide 
             // the available columns among the columns. This should only fail in
             // pathological cases where there are just too many cols to display period.
-            // TODO: Just increase Stream.max_width if the user has passed us something broken. End user can resize window.
             if self.penalize_big_cols(big_cols) {
                 self.width = self.max_width;
                 return Ok(())
             }
         }
 
+        // Should be guarded by the fact that we bump up max_width if user specifies wider columns.
         panic!("Couldn't display {} columns worth of data in {} columns of text", self.columns.len(), self.max_width);
     }
 
@@ -425,7 +437,7 @@ pub struct Column<T> {
     header: Option<String>,
     writer: Box<dyn Fn(&mut fmt::Formatter, &T) -> fmt::Result>,
 
-    // TODO: alignment.
+    alignment: Alignment,
 
     // Min size specified by user
     min_width: usize,
@@ -450,6 +462,7 @@ impl <T> Column<T> {
         Self {
             header: None,
             writer: Box::new(func),
+            alignment: Alignment::Left,
 
             // a min-width of 1 means we'll always at least show there was *some* data in a col,
             // even if it's truncated.
@@ -480,6 +493,29 @@ impl <T> Column<T> {
         self.min_width = min_width;
         self
     }
+
+    /// Align left. (This is the default.)
+    pub fn left(mut self) -> Self {
+        self.alignment = Alignment::Left;
+        self
+    }
+        /// Align right. 
+    pub fn right(mut self) -> Self {
+        self.alignment = Alignment::Right;
+        self
+    }
+
+    /// Align left. (This is the default.)
+    pub fn center(mut self) -> Self {
+        self.alignment = Alignment::Center;
+        self
+    }
+}
+
+enum Alignment {
+    Left,
+    Center,
+    Right,
 }
 
 fn safe_truncate(value: &mut String, mut len: usize) {

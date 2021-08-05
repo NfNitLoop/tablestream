@@ -27,8 +27,8 @@ fn sample_data() -> Vec<Person> {
             name: "Bob".to_string(),
             age: 99,
             favorite_color: "beige".to_string(),
-            text: "lorum ipsum dolor sit amet. Or something to\
-                  that effect. I don't speak Latin so it's hard\
+            text: "lorum ipsum dolor sit amet. Or something to \
+                  that effect. I don't speak Latin so it's hard \
                   to remember that text off the top of my head.\
                   ".to_string(),
         }
@@ -112,6 +112,67 @@ fn basic_border() -> io::Result<()> {
 }
 
 #[test]
+fn basic_border_grow() -> io::Result<()> {
+
+    let mut out = Vec::new();
+    let mut s = Stream::new(
+        &mut out,
+        cols_3(),
+    ).borders(true).max_width(80).grow(true);
+
+    for person in sample_data().into_iter() {
+        s.row(person)?;
+    }
+
+    s.finish()?;
+
+    let expected = "\
+--------------------------------------------------------------------------------
+|         Name         |         Age         |         Favorite Color          |
+--------------------------------------------------------------------------------
+| Cody                 | 41                  | yellow                          |
+| Bob                  | 99                  | beige                           |
+--------------------------------------------------------------------------------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(expected, out);
+
+    Ok(())
+}
+
+#[test]
+fn test_align() -> io::Result<()> {
+
+    let mut out = Vec::new();
+    let mut cols = cols_3();
+    cols[0] = col!(Person: .name).header("Name").right();
+    cols[1] = col!(Person: .age).header("Age").center();
+
+    let mut s = Stream::new( &mut out, cols).borders(true).max_width(80).grow(true);
+
+    for person in sample_data().into_iter() {
+        s.row(person)?;
+    }
+
+    s.finish()?;
+
+    let expected = "\
+--------------------------------------------------------------------------------
+|         Name         |         Age         |         Favorite Color          |
+--------------------------------------------------------------------------------
+|                 Cody |         41          | yellow                          |
+|                  Bob |         99          | beige                           |
+--------------------------------------------------------------------------------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(expected, out);
+
+    Ok(())
+}
+
+#[test]
 fn longer_text_border() -> io::Result<()> {
     let mut out = Vec::new();
     let mut s = Stream::new(
@@ -127,10 +188,10 @@ fn longer_text_border() -> io::Result<()> {
 
     let expected ="\
 --------------------------------------------------------------------------------
-| Name | Age | Favorite Color | Text                                           |
+| Name | Age | Favorite Color |                      Text                      |
 --------------------------------------------------------------------------------
 | Cody | 41  | yellow         | Here's a long string of text. It's probably go |
-| Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something totha |
+| Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something to th |
 --------------------------------------------------------------------------------
 ";
 
@@ -156,10 +217,10 @@ fn longer_text() -> io::Result<()> {
 
     let expected ="\
 --------------------------------------------------------------------------------
-Name | Age | Favorite Color | Text                                              
+Name | Age | Favorite Color |                        Text                       
 --------------------------------------------------------------------------------
 Cody | 41  | yellow         | Here's a long string of text. It's probably going 
-Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something tothat ef
+Bob  | 99  | beige          | lorum ipsum dolor sit amet. Or something to that e
 --------------------------------------------------------------------------------
 ";
 
