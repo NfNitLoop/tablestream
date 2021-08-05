@@ -11,6 +11,10 @@ repository = "https://github.com/NfNitLoop/tablestream"
 documentation = "https://docs.rs/tablestream"
 readme = "README.md"
 
+exclude = [
+    # This seems like unnecessary bloat:
+    "*.gif",
+]
 
 [dependencies]
 # Used to determine terminal width.
