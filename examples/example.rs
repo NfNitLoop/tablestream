@@ -1,6 +1,6 @@
 use std::io::{self, stdout};
 
-use tablestream::{Stream, Column};
+use tablestream::{Column, Stream, col};
 
 fn main() -> io::Result<()> {
     let stdout = stdout();
@@ -9,10 +9,9 @@ fn main() -> io::Result<()> {
 
 
     let mut stream = Stream::new(&mut handle, vec![
-        Column::new(|c: &City| &c.name).header("City"),
-        Column::new(|c: &City| &c.country).header("Country"),
-        Column::new(|c: &City| &c.population).header("Population"),
-        // TODO: Column::new(|c: &City| &format!("{}", &c.population)).header("Population"),
+        Column::new(|f, c: &City| write!(f, "{}", &c.name)).header("City"),
+        col!(City: .country).header("Country"),
+        col!(City: "{:.2e}", .population).header("Population"),
     ]);
 
     for city in largest_cities() {
@@ -44,26 +43,24 @@ impl City {
 fn largest_cities() -> Vec<City> {
     vec![
         City::new("Shanghai", "China", 24_150_000),
-    ]
+        City::new("Beijing", "China", 21_700_000),
+        City::new("Lagos", "Nigeria", 21_320_000),
+        City::new("Tianjin", "China", 15_470_000),
+        City::new("Karachi", "Pakistan", 14_920_000),
+        City::new("Istanbul", "Turkey", 14_800_000),
+        City::new("Dhaka", "Bangladesh", 14_540_000),
+        City::new("Chengdu", "China", 14_430_000),
+        City::new("Tokyo", "Japan", 13_620_000),
+        City::new("Guangzhou", "China",  13_500_000),
+        City::new("Mumbai", "India", 12_440_000),
+        City::new("Moscow", "Russia", 12_380_000),
+        City::new("Bengaluru", "India", 12_340_000),
+        City::new("Zhoukou", "China", 12_070_000),
+        City::new("São Paulo", "Brazil", 12_040_000),
+        City::new("Kinshasa", "Democratic Republic of the Congo", 11_860_000),
+        City::new("Nanyang", "China", 11_680_000),
+        City::new("Baoding", "China", 11_190_000),
+        City::new("Delhi", "India", 11_030_000),
+        City::new("Lima", "Peru", 10_850_000),    ]
 }
 
-// 1 | Shanghai, China | 24.15 million people | 
-// 2 | Beijing, China | 21.7 million people | 
-// 3 | Lagos, Nigeria | 21.32 million people | 
-// 4 | Tianjin, China | 15.47 million people | 
-// 5 | Karachi, Sindh, Pakistan | 14.92 million people | 
-// 6 | Istanbul, Turkey | 14.8 million people | 
-// 7 | Dhaka, Bangladesh | 14.54 million people | 
-// 8 | Chengdu, Sichuan, China | 14.43 million people | 
-// 9 | Tokyo, Japan | 13.62 million people | 
-// 10 | Guangzhou, Guangdong, China | 13.5 million people | 
-// 11 | Mumbai, Maharashtra, India | 12.44 million people | 
-// 12 | Moscow, Russia | 12.38 million people | 
-// 13 | Bengaluru, Karnataka, India | 12.34 million people | 
-// 14 | Zhoukou, Henan, China | 12.07 million people | 
-// 15 | São Paulo, Brazil | 12.04 million people | 
-// 16 | Kinshasa, Kinshasa City, Democratic Republic of the Congo | 11.86 million people | 
-// 17 | Nanyang, Henan, China | 11.68 million people | 
-// 18 | Baoding, Hebei, China | 11.19 million people | 
-// 19 | Delhi, India | 11.03 million people | 
-// 20 | Lima, Peru | 10.85 million people | 

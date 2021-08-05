@@ -1,6 +1,66 @@
-//! TableStream gives you a tool for streaming tables out to the terminal.
+//! TableStream is a tool for streaming tables out to the terminal.
 //! It will buffer some number of rows before first output and try to automatically
 //! determine appropriate widths for each column.
+//!
+//! ```
+//! # use std::io;
+//! # use tablestream::*;
+//! // Some sample data we want to show:
+//! struct City {
+//!     name: String,
+//!     country: String,
+//!     population: u32,
+//! }
+//! 
+//! impl City {
+//!     fn new(name: &str, country: &str, population: u32) -> Self {
+//!         Self { name: name.to_string(), country: country.to_string(), population, }
+//!     }
+//! }
+//! 
+//! fn largest_cities() -> Vec<City> {
+//!    vec![
+//!        City::new("Shanghai", "China", 24_150_000),
+//!        City::new("Beijing", "China", 21_700_000),
+//!        City::new("Lagos", "Nigeria", 21_320_000),
+//!    ]
+//! }
+//!
+//! let mut out = io::stdout();
+//! let mut stream = Stream::new(&mut out, vec![
+//!     // There are three different ways to specify which data to show in each column.
+//!     // 1. A closure that takes a formatter, and a reference to your type, and writes it out.
+//!     Column::new(|f, c: &City| write!(f, "{}", &c.name)).header("City"),
+//!      
+//!     // 2. Or we can use a shortcut macro to just show a single field:
+//!     // (It must implement fmt::Display)
+//!     col!(City: .country).header("Country"),
+//!
+//!     // 3. You can optionally specify a formatter:
+//!     // (Note: don't use padding/alignment in your formatters. TableStream will do that for you.)
+//!     col!(City: "{:.2e}", .population).header("Population"),
+//! ]);
+//!
+//! // Stream our data:
+//! for city in largest_cities() {
+//!    stream.row(city)?;
+//! }
+//! 
+//! stream.finish()?;
+//!  
+//! # Ok::<(), io::Error>(())
+//! ```
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
+//! 
 
 use std::{
     cmp::max,
@@ -13,6 +73,7 @@ use std::{
 #[cfg(test)]
 mod tests;
 
+/// Allows printing rows of data to some io::Write.
 pub struct Stream<T, Out: Write> {
     columns: Vec<Column<T>>,
     width: usize, // calculated.
@@ -60,8 +121,7 @@ impl <T, Out: Write> Stream<T, Out> {
         )
     }
 
-
-
+    /// Enable right/left borders? (defulat: false)
     pub fn borders(mut self, borders: bool) -> Self {
         self.borders = borders;
         let width = self.max_width;
@@ -83,6 +143,13 @@ impl <T, Out: Write> Stream<T, Out> {
         let min_width = col_widths + borders + dividers;
         self.max_width = max(max_width, min_width);
         self
+    }
+
+    /// Enable horizontal padding around `|` dividers and inside external borders. (default: true)
+    pub fn padding(mut self, padding: bool) -> Self {
+        self.padding = padding;
+        let width = self.max_width;
+        self.max_width(width)
     }
 
     /// Print a single row.
@@ -179,7 +246,11 @@ impl <T, Out: Write> Stream<T, Out> {
             }
 
             buf.clear();
-            write!(buf, "{}", (col.mapper)(&row)).to_io()?;
+            write!(
+                buf,
+                "{}", 
+                Displayer{ row: &row, writer: col.writer.as_ref() }
+            ).to_io()?;
 
             // TODO: This assumes characters are all 1 wide.
             // Crate to calculate glyph/column widths?
@@ -211,7 +282,11 @@ impl <T, Out: Write> Stream<T, Out> {
         for row in &self.buffer {
             for col in self.columns.iter_mut() {
                 self.str_buf.clear();
-                write!(&mut self.str_buf, "{}", (col.mapper)(row)).to_io()?;
+                write!(
+                    &mut self.str_buf,
+                    "{}",
+                    Displayer{ row, writer: col.writer.as_ref() }
+                ).to_io()?;
                 col.max_width = max(col.max_width, self.str_buf.len());
                 col.width_sum += self.str_buf.len();
             }
@@ -348,15 +423,14 @@ impl <T, Out: Write> Stream<T, Out> {
 /// Configure how we want to display a single column.
 pub struct Column<T> {
     header: Option<String>,
-    mapper: Box<dyn Fn(&T) -> &dyn fmt::Display>,
+    writer: Box<dyn Fn(&mut fmt::Formatter, &T) -> fmt::Result>,
 
     // TODO: alignment.
 
     // Min size specified by user
     min_width: usize,
 
-
-    // size calculated by algorithm.
+    // calculated size.
     width: usize,
 
     // Temp vars used while calculating the width:
@@ -371,11 +445,11 @@ impl <T> Column<T> {
 
     /// Create a new Column with a Fn that knows how to extract one column of data from T.
     pub fn new<F>(func: F) -> Self 
-    where F: (Fn(&T) -> &dyn fmt::Display) + 'static
+    where F: (Fn(&mut fmt::Formatter, &T) -> fmt::Result) + 'static
     {
         Self {
             header: None,
-            mapper: Box::new(func),
+            writer: Box::new(func),
 
             // a min-width of 1 means we'll always at least show there was *some* data in a col,
             // even if it's truncated.
@@ -389,12 +463,19 @@ impl <T> Column<T> {
         }
     }
 
+    /// Set a column header.
+    ///
+    /// Note: This will increase the min_width of your column to the size of the header.
     pub fn header(mut self, name: &str) -> Self {
         self.header = Some(name.to_string());
         self.min_width = max(self.min_width, name.len());
         self
     }
 
+    /// Set the minimum width of the column. (Default: 1)
+    ///
+    /// Note that setting widths of columns larger than the Stream.max_width will cause the
+    /// stream to expand its max_width to accomodate them.
     pub fn min_width(mut self, min_width: usize) -> Self {
         self.min_width = min_width;
         self
@@ -421,4 +502,29 @@ impl ToIOResult for fmt::Result {
     fn to_io(self) -> io::Result<()> {
         self.map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
+}
+
+struct Displayer<'a, T> {
+    row: &'a T,
+    writer: &'a dyn Fn(&mut fmt::Formatter, &T) -> fmt::Result,
+}
+
+impl <'a, T> fmt::Display for Displayer<'a, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.writer)(f, self.row)
+    }
+}
+
+/// Create a new column. Saves some boilerplate vs. `Column::new(...)`.
+///
+/// See top-level docs for examples.
+// I wish I could use column!(), but that's already taken by Rust. 🤦‍♂️
+#[macro_export]
+macro_rules! col {
+    ($t:ty : .$field:ident) => {
+        Column::new(|f, row: &$t| write!(f, "{}", row.$field))
+    };
+    ($t:ty : $s:literal, $(.$field:ident),*) => {
+        Column::new(|f, row: &$t| write!(f, $s, $(row.$field)*,))
+    };
 }

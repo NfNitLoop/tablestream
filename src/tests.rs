@@ -1,6 +1,6 @@
 use std::{io};
 
-use crate::{Column, Stream};
+use crate::{Column, Stream, col};
 
 
 struct Person {
@@ -37,18 +37,18 @@ fn sample_data() -> Vec<Person> {
 
 fn cols_3() -> Vec<Column<Person>> {
     vec![
-        Column::new(|p: &Person| &p.name).header("Name"),
-        Column::new(|p: &Person| &p.age).header("Age"),
-        Column::new(|p: &Person| &p.favorite_color).header("Favorite Color"),
+        col!(Person: .name).header("Name"),
+        col!(Person: .age).header("Age"),
+        col!(Person: .favorite_color).header("Favorite Color"),
     ]
 }
 
 fn cols_4() -> Vec<Column<Person>> {
     vec![
-        Column::new(|p: &Person| &p.name).header("Name"),
-        Column::new(|p: &Person| &p.age).header("Age"),
-        Column::new(|p: &Person| &p.favorite_color).header("Favorite Color"),
-        Column::new(|p: &Person| &p.text).header("Text"),
+        col!(Person: .name).header("Name"),
+        col!(Person: .age).header("Age"),
+        col!(Person: .favorite_color).header("Favorite Color"),
+        col!(Person: .text).header("Text"),
     ]
 }
 
