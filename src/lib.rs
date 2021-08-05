@@ -540,13 +540,14 @@ impl <T> Column<T> {
         self.alignment = Alignment::Left;
         self
     }
-        /// Align right. 
+
+    /// Align right.
     pub fn right(mut self) -> Self {
         self.alignment = Alignment::Right;
         self
     }
 
-    /// Align left. (This is the default.)
+    /// Center-align.
     pub fn center(mut self) -> Self {
         self.alignment = Alignment::Center;
         self
