@@ -163,6 +163,8 @@ impl <T, Out: Write> Stream<T, Out> {
         
         self.buffer.push(data); 
         if self.buffer.len() > 100 {
+            // Prefer to grow if unspecified, to allow extra space for rows to come:
+            self.grow = self.grow.or(Some(true));
             self.write_buffer()?;
         }
         
@@ -425,7 +427,9 @@ impl <T, Out: Write> Stream<T, Out> {
     /// This may write any items still in the buffer,
     /// as well as a trailing horizontal line.
     pub fn finish(mut self) -> io::Result<()> {
-        self.write_buffer()?;
+        if !self.buffer.is_empty() {
+            self.write_buffer()?;
+        }
         self.hr()?;
 
         Ok(())

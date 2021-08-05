@@ -6,4 +6,10 @@ readme = "README.md"
 
 
 [dependencies]
+# Used to determine terminal width.
+# (And maybe eventually for colors.)
 crossterm = "*"
+
+[dev-dependencies.structopt]
+# Used by example.rs
+version = "*"

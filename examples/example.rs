@@ -1,20 +1,29 @@
 use std::io::{self, stdout};
 
+use structopt::StructOpt;
+
 use tablestream::{Column, Stream, col};
 
 fn main() -> io::Result<()> {
+
+    let opts = Opts::from_args();
+
     let stdout = stdout();
     let mut handle = stdout.lock();
-
-
 
     let mut stream = Stream::new(&mut handle, vec![
         Column::new(|f, c: &City| write!(f, "{}", &c.name)).header("City"),
         col!(City: .country).header("Country"),
-        col!(City: "{:.2e}", .population).header("Population"),
+        col!(City: "{:.2e}", .population).header("Population").right(),
     ]);
+    if let Some(g) = opts.grow {
+        stream = stream.grow(g);
+    }
+    stream = stream.borders(opts.borders).padding(!opts.no_padding);
 
-    for city in largest_cities() {
+    let cities = largest_cities();
+    // Generally don't want to clone like this but just doing so to simulate long tables:
+    for city in cities.iter().cycle().take(opts.repeat as usize * cities.len()).cloned() {
         stream.row(city)?;
     }
 
@@ -23,7 +32,25 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
+#[derive(StructOpt)]
+struct Opts {
+    /// Grow the table to the full terminal width.
+    #[structopt(long)]
+    grow: Option<bool>,
 
+    #[structopt(long)]
+    borders: bool,
+
+    /// Repeat the data to simulate lots of data.
+    #[structopt(long, default_value = "1")]
+    repeat: u16,
+
+    #[structopt(long)]
+    no_padding: bool,
+}
+
+
+#[derive(Clone)]
 struct City {
     name: String,
     country: String,
