@@ -612,9 +612,9 @@ impl <'a, T> fmt::Display for Displayer<'a, T> {
 #[macro_export]
 macro_rules! col {
     ($t:ty : .$field:ident) => {
-        Column::new(|f, row: &$t| write!(f, "{}", row.$field))
+        $crate::Column::new(|f, row: &$t| write!(f, "{}", row.$field))
     };
     ($t:ty : $s:literal, $(.$field:ident),*) => {
-        Column::new(|f, row: &$t| write!(f, $s, $(row.$field)*,))
+        $crate::Column::new(|f, row: &$t| write!(f, $s, $(row.$field)*,))
     };
 }
