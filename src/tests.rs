@@ -330,3 +330,37 @@ fn unicode_text() -> io::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn min_width() -> io::Result<()> {
+    let mut out = Vec::new();
+    let mut s = Stream::new(&mut out, vec![
+        col!(Person: .name).header("Name"),
+        col!(Person: .age).header("Age"),
+        col!(Person: .favorite_color).header("Favorite Color").min_width(1),
+        col!(Person: .text).header("Text").min_width(25),
+        col!(Person: .text).header("Short"),
+    ]).max_width(50);
+
+    for person in sample_data() {
+        s.row(person)?;
+    }
+
+    s.finish()?;
+
+    // WRONG.
+    let expected ="\
+--------------------------------------------------
+Name | Age | F |           Text            | Short
+--------------------------------------------------
+Cody | 41  | y | Here's a long string of t | Here'
+Bob  | 99  | b | lorum ipsum dolor sit ame | lorum
+--------------------------------------------------
+";
+
+    let out = String::from_utf8(out).unwrap();
+    println!("{}", &out);
+    assert_eq!(expected, out);
+
+    Ok(())
+}

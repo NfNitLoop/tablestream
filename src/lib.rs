@@ -379,6 +379,8 @@ impl <T, Out: Write> Stream<T, Out> {
         panic!("Couldn't display {} columns worth of data in {} columns of text", self.columns.len(), self.max_width);
     }
 
+    /// If we can get away w/ shrinking N biggest columns, do so
+    /// and return true.
     fn penalize_big_cols(&mut self, num_big_cols: usize) -> bool {
         let num_cols = self.columns.len();
         let padding = if self.padding { 1 } else { 0 };
@@ -407,13 +409,13 @@ impl <T, Out: Write> Stream<T, Out> {
         }
 
         // Big cols get assigned the remaining sizes.
+
         // First pass, try assigning widths w/ simple algorithm.  If the column has a min_width that is
         // larger, subtract the width from available cols, which we'll reallocate on the 2nd pass.
-    
         let mut big_cols_left = num_big_cols;
         for col in big_cols.iter_mut() {
-            let alloc_width = ((col.width_sum as f64 / num_big_cols as f64) * remaining_width as f64).floor() as usize;
-            if alloc_width < col.min_width {
+            let cols_per_big_col = remaining_width / big_cols_left;
+            if cols_per_big_col < col.min_width {
                 col.width = col.min_width;
                 remaining_width -= col.width;
                 big_cols_left -= 1;
