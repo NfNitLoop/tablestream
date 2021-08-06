@@ -93,6 +93,15 @@ pub struct Stream<T, Out: Write> {
 impl <T, Out: Write> Stream<T, Out> {
     /// Create a new table streamer.
     pub fn new(output: Out, columns: Vec<Column<T>>) -> Self {
+        let mut term_width = crossterm::terminal::size().map(|(w,_)| w as usize);
+        if cfg!(windows) {
+            // Windows Terminal has a weird bug. It seems to try to re-wrap text on resize. It does so if the
+            // text goes all the way to the edge of the terminal.  If we leave 1 colum extra, the behavior stops.
+            // 🤦‍♂️
+            // See: https://github.com/microsoft/terminal/issues/3088
+            term_width = term_width.map(|w| w - 1);
+        }
+
         Self{
             columns,
             max_width: 0,
@@ -111,7 +120,7 @@ impl <T, Out: Write> Stream<T, Out> {
 
             _pd: Default::default(),
         }.max_width(
-            crossterm::terminal::size().map(|(w,_)| w as usize).unwrap_or(80)
+            term_width.unwrap_or(80)
         )
     }
 
