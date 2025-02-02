@@ -25,6 +25,7 @@ unicode-truncate = "0.2.0"
 unicode-width = "0.1.8"
 
 
-[dev-dependencies.structopt]
+[dev-dependencies.clap]
 # Used by example.rs
-version = "0.3.22"
+version = "4"
+features = ["derive"]

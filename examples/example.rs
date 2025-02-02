@@ -1,12 +1,12 @@
 use std::io::{self, stdout};
 
-use structopt::StructOpt;
 
+use clap::Parser;
 use tablestream::{Column, Stream, col};
 
 fn main() -> io::Result<()> {
 
-    let opts = Opts::from_args();
+    let opts = Opts::parse();
 
     let stdout = stdout();
     let mut handle = stdout.lock();
@@ -51,33 +51,33 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Opts {
     /// Grow the table to the full terminal width.
-    #[structopt(long)]
+    #[arg(long)]
     grow: Option<bool>,
 
-    #[structopt(long)]
+    #[arg(long)]
     borders: bool,
 
     /// Repeat the data to simulate lots of data.
-    #[structopt(long, default_value = "1")]
+    #[arg(long, default_value = "1")]
     repeat: u16,
 
-    #[structopt(long)]
+    #[arg(long)]
     no_padding: bool,
 
-    #[structopt(long)]
+    #[arg(long)]
     format_pop: bool,
 
-    #[structopt(long)]
+    #[arg(long)]
     unicode: bool,
 
-    #[structopt(long)]
+    #[arg(long)]
     title: Option<String>,
 
     /// Show total population of these cities.
-    #[structopt(long)]
+    #[arg(long)]
     total: bool,
 
 }
